@@ -1,0 +1,15 @@
+[package]
+name = "easy_mutex"
+version = "0.1.0"
+edition = "2024"
+authors = ["Marco Fabbroni (Fabbro03) <marco.fabbroni@outlook.it>"]
+description = "A cloneable mutex wrapper that simplifies everyday use."
+license = "Apache-2.0"
+repository = "https://github.com/Fabbro03/easy_mutex"
+
+[profile.release]
+codegen-units = 1
+lto = "fat"
+strip = "symbols"
+panic = "abort"
+opt-level = 3
