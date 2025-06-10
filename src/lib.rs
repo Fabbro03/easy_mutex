@@ -14,25 +14,65 @@
   limitations under the License.
 */
 
-use std::sync::{Arc, Mutex};
+#![warn(missing_docs)]
+#![doc = include_str!("../README.md")]
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
-/// A simple cloneable mutex wrapper around `Arc<Mutex<T>>`.
+/// A thread-safe, clonable wrapper around `std::sync::Mutex<T>` using `Arc`.
 ///
-/// This version clones the inner value on read.
+/// `EasyMutex` is a convenience wrapper for safely sharing mutable access
+/// across threads using an atomic reference-counted mutex. It provides a simplified
+/// interface to lock and access the underlying data.
+///
+/// # Example
+///
+/// ```
+/// use easy_mutex::EasyMutex;
+///
+/// let shared = EasyMutex::new(5);
+/// let clone = shared.clone();
+///
+/// assert_eq!(shared.read(), 5);
+/// clone.write(10);
+/// assert_eq!(shared.read(), 10);
+///
+/// assert!(clone.write_result(2).is_ok());
+///
+/// let readed  = match shared.read_result() {
+///     Ok(val) => {println!("Safe read: {val}"); val},
+///     Err(e) => {println!("Poisoned mutex: {e}"); 0},
+/// };
+/// assert_eq!(readed, 2);
+///
+///let data: EasyMutex<String> = "hello".to_string().into();
+///assert_eq!(data.read(), "hello");
+/// ```
 #[derive(Clone, Default, Debug)]
 pub struct EasyMutex<T>(Arc<Mutex<T>>);
 
 impl<T> EasyMutex<T> {
     /// Creates a new `EasyMutex` wrapping the given value.
+    ///
+    /// # Arguments
+    ///
+    /// * `value` - The value to wrap in a mutex.
+    ///
+    /// # Returns
+    ///
+    /// An `EasyMutex` instance holding the provided value.
     pub fn new(value: T) -> Self {
         Self(Arc::new(Mutex::new(value)))
     }
 
-    /// Reads the inner value by locking and cloning it.
+    /// Reads the inner value by acquiring a lock, cloning it and releasing it.
+    ///
+    /// # Returns
+    ///
+    /// A clone of the inner value.
     ///
     /// # Panics
     ///
-    /// Panics if the mutex is poisoned.
+    /// Panics if the mutex is poisoned (e.g., another thread panicked while holding the lock).
     pub fn read(&self) -> T
     where
         T: Clone,
@@ -40,13 +80,37 @@ impl<T> EasyMutex<T> {
         self.0.lock().unwrap().clone()
     }
 
-    /// Writes a new value into the mutex by locking it.
+    /// Writes a new value into the mutex by acquiring a lock, replacing the inner value and releasing it.
+    ///
+    /// # Arguments
+    ///
+    /// * `new_value` - The new value to be stored in the mutex.
     ///
     /// # Panics
     ///
-    /// Panics if the mutex is poisoned.
+    /// Panics if the mutex is poisoned (e.g., another thread panicked while holding the lock).
     pub fn write(&self, new_value: T) {
         *self.0.lock().unwrap() = new_value;
+    }
+
+    /// Same as [`EasyMutex::read`], but return a `Result<T, PoisonError<MutexGuard<'_, T>>>` type.
+    pub fn read_result(&self) -> Result<T, PoisonError<MutexGuard<'_, T>>>
+    where
+        T: Clone,
+    {
+        self.0.lock().map(|guard| guard.clone())
+    }
+
+    /// Same as [`EasyMutex::write`], but return a `Result<(), PoisonError<MutexGuard<'_, T>>>` type.
+    pub fn write_result(&self, new_value: T) -> Result<(), PoisonError<MutexGuard<'_, T>>> {
+        self.0.lock().map(|mut guard| *guard = new_value)
+    }
+}
+
+/// Enables `EasyMutex::from(value)` syntax.
+impl<T> From<T> for EasyMutex<T> {
+    fn from(value: T) -> Self {
+        Self::new(value)
     }
 }
 
@@ -67,12 +131,32 @@ mod tests {
     }
 
     #[test]
+    fn test_result_read_write() {
+        let data = EasyMutex::new(1);
+
+        let val = data.read_result().unwrap();
+        assert_eq!(val, 1);
+
+        let write_result = data.write_result(2);
+        assert!(write_result.is_ok());
+
+        let val = data.read_result().unwrap();
+        assert_eq!(val, 2);
+    }
+
+    #[test]
     fn clone_mutex_and_share() {
         let m = EasyMutex::new(0);
         let m2 = m.clone();
 
         m.write(5);
         assert_eq!(m2.read(), 5);
+    }
+
+    #[test]
+    fn test_from_impl() {
+        let data: EasyMutex<String> = "hello".to_string().into();
+        assert_eq!(data.read(), "hello");
     }
 
     #[test]

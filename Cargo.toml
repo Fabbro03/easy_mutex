@@ -1,6 +1,6 @@
 [package]
 name = "easy_mutex"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 authors = ["Marco Fabbroni (Fabbro03) <marco.fabbroni@outlook.it>"]
 description = "A cloneable mutex wrapper that simplifies everyday use."
