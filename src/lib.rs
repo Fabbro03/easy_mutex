@@ -117,7 +117,6 @@ impl<T> From<T> for EasyMutex<T> {
 #[cfg(test)]
 mod tests {
     use super::EasyMutex;
-    use std::sync::Arc;
     use std::thread;
     use std::time::{Duration, Instant};
 
@@ -161,7 +160,7 @@ mod tests {
 
     #[test]
     fn concurrent_modify() {
-        let m = Arc::new(EasyMutex::new(0));
+        let m = EasyMutex::new(0);
         let mut handles = vec![];
         for _ in 0..10 {
             let m_clone = m.clone();
