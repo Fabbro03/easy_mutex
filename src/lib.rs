@@ -14,7 +14,7 @@
   limitations under the License.
 */
 
-#![warn(missing_docs)]
+#![deny(missing_docs)]
 #![doc = include_str!("../README.md")]
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
