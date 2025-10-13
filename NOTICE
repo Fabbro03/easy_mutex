@@ -1,0 +1,10 @@
+This product includes software developed by Marco Fabbroni (c) 2025.
+Licensed under the Apache License, Version 2.0.
+
+Third-party components:
+
+- parking_lot (c) 2016 Amanieu d'Antras
+  Licensed under the Apache License, Version 2.0
+  https://github.com/Amanieu/parking_lot
+
+No modifications were made to the third-party component.

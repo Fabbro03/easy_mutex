@@ -16,7 +16,8 @@
 
 #![deny(missing_docs)]
 #![doc = include_str!("../README.md")]
-use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
+use parking_lot::Mutex;
+use std::sync::Arc;
 
 /// A thread-safe, clonable wrapper around `std::sync::Mutex<T>` using `Arc`.
 ///
@@ -35,14 +36,6 @@ use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 /// assert_eq!(shared.read(), 5);
 /// clone.write(10);
 /// assert_eq!(shared.read(), 10);
-///
-/// assert!(clone.write_result(2).is_ok());
-///
-/// let readed  = match shared.read_result() {
-///     Ok(val) => {println!("Safe read: {val}"); val},
-///     Err(e) => {println!("Poisoned mutex: {e}"); 0},
-/// };
-/// assert_eq!(readed, 2);
 ///
 ///let data: EasyMutex<String> = "hello".to_string().into();
 ///assert_eq!(data.read(), "hello");
@@ -77,7 +70,7 @@ impl<T> EasyMutex<T> {
     where
         T: Clone,
     {
-        self.0.lock().unwrap().clone()
+        self.0.lock().clone()
     }
 
     /// Writes a new value into the mutex by acquiring a lock, replacing the inner value and releasing it.
@@ -90,20 +83,7 @@ impl<T> EasyMutex<T> {
     ///
     /// Panics if the mutex is poisoned (e.g., another thread panicked while holding the lock).
     pub fn write(&self, new_value: T) {
-        *self.0.lock().unwrap() = new_value;
-    }
-
-    /// Same as [`EasyMutex::read`], but return a `Result<T, PoisonError<MutexGuard<'_, T>>>` type.
-    pub fn read_result(&self) -> Result<T, PoisonError<MutexGuard<'_, T>>>
-    where
-        T: Clone,
-    {
-        self.0.lock().map(|guard| guard.clone())
-    }
-
-    /// Same as [`EasyMutex::write`], but return a `Result<(), PoisonError<MutexGuard<'_, T>>>` type.
-    pub fn write_result(&self, new_value: T) -> Result<(), PoisonError<MutexGuard<'_, T>>> {
-        self.0.lock().map(|mut guard| *guard = new_value)
+        *self.0.lock() = new_value;
     }
 }
 
@@ -127,20 +107,6 @@ mod tests {
 
         m.write(20);
         assert_eq!(m.read(), 20);
-    }
-
-    #[test]
-    fn test_result_read_write() {
-        let data = EasyMutex::new(1);
-
-        let val = data.read_result().unwrap();
-        assert_eq!(val, 1);
-
-        let write_result = data.write_result(2);
-        assert!(write_result.is_ok());
-
-        let val = data.read_result().unwrap();
-        assert_eq!(val, 2);
     }
 
     #[test]
